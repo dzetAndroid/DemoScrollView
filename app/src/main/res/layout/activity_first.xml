@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ProgressBar
+        android:id="@+id/mPb"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        style="@style/Base.Widget.AppCompat.ProgressBar.Horizontal"
+        android:progressBackgroundTint="@android:color/darker_gray"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+
+        tools:targetApi="lollipop"/>
+
+    <ScrollView
+        android:id="@+id/mScroll"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        >
+
+        <TextView
+            android:id="@+id/mTxt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            />
+
+    </ScrollView>
+
+</android.support.constraint.ConstraintLayout>
