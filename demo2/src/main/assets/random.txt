@@ -1,0 +1,579 @@
+Open Source by greenrobot Logo
+EventBus
+greenDAO
+Essentials
+ObjectBox
+Contact/Support
+Blog
+Relations
+Contents [hide]
+1 Modelling To-One Relations
+2 Modelling To-Many Relations
+3 Resolving and Updating To-Many Relations
+4 Bi-Directional 1:N Relations
+5 Example: Modelling Tree Relations
+6 More examples
+Database tables may relate to each other using 1:1, 1:N, or N:M relations. If you are new to database relations, it’s a good idea to catch up before we discus ORM specifics. Here are some random links discussing relations in general.
+
+In greenDAO, entities relate using to-one or to-many relations. For example, if you want to model a 1:n relation in greenDAO, you will have a to-one and a to-many relation. However, note that the to-one and a to-many relations are not connected with each other, so you will have to update both.
+
+Modelling To-One Relations
+
+The @ToOne annotation defines a relation to another entity (one entity object). Apply it to the property holding the other entity object.
+
+Internally, greenDAO needs an additional property pointing to the ID of the target entity, which is specified by the joinProperty parameter. If this parameter is absent, then an additional column is automatically created to hold the key.
+
+Java
+
+@Entity
+public class Order {
+    @Id private Long id;
+
+    private long customerId;
+
+    @ToOne(joinProperty = "customerId")
+    private Customer customer;
+}
+
+@Entity
+public class Customer {
+    @Id private Long id;
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+@Entity
+public class Order {
+    @Id private Long id;
+
+    private long customerId;
+
+    @ToOne(joinProperty = "customerId")
+    private Customer customer;
+}
+
+@Entity
+public class Customer {
+    @Id private Long id;
+}
+The getter-methods of to-one relations (in this example getCustomer()) resolve the target entity lazily on their first call. Subsequent calls will return the previously resolved object immediately.
+
+Note that if you change the foreign key property (here customerId), the next call to the getter ( getCustomer()) will resolve the entity for the updated ID.
+
+Also, if you set a new entity ( setCustomer()), the foreign key property ( customerId) will be updated as well.
+
+Java
+
+Customer customerA = user.getCustomer();
+
+// change the customer id
+user.setCustomerId(customerIdB);
+// or set a customer with a different id
+user.setCustomer(customerB);
+
+customerB = user.getCustomer();
+assert(customerA.getId() != customerB.getId());
+1
+2
+3
+4
+5
+6
+7
+8
+9
+Customer customerA = user.getCustomer();
+
+// change the customer id
+user.setCustomerId(customerIdB);
+// or set a customer with a different id
+user.setCustomer(customerB);
+
+customerB = user.getCustomer();
+assert(customerA.getId() != customerB.getId());
+Note: To eagerly load to-one relations use loadDeep() and queryDeep() of the entity DAO class. This will resolve an entity with all to-one relations with a single database query. This is great for performance if you always access the related entities.
+
+Modelling To-Many Relations
+
+@ToMany defines a relation to a set of other entities (multiple entity objects). Apply this to the property representing a List of target entities. The referenced entity must have one or more properties pointing to the entity owning the @ToMany.
+
+There are three possibilities to specify the relation mapping, use one of them only:
+
+referencedJoinProperty parameter: specify the name of the “foreign key” property in the target entity pointing to the id of this entity.
+Java
+
+@Entity
+public class Customer {
+    @Id private Long id;
+
+    @ToMany(referencedJoinProperty = "customerId")
+    @OrderBy("date ASC")
+    private List<Order> orders;
+}
+
+@Entity
+public class Order {
+    @Id private Long id;
+    private Date date;
+    private long customerId;
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+@Entity
+public class Customer {
+    @Id private Long id;
+
+    @ToMany(referencedJoinProperty = "customerId")
+    @OrderBy("date ASC")
+    private List<Order> orders;
+}
+
+@Entity
+public class Order {
+    @Id private Long id;
+    private Date date;
+    private long customerId;
+}
+joinProperties parameter: for more complex relations you can specify a list of @JoinProperty annotations. Each @JoinProperty requires a source property in the original entity and a referenced property in the target entity.
+Java
+
+@Entity
+public class Customer {
+    @Id private Long id;
+    @Unique private String tag;
+
+    @ToMany(joinProperties = {
+            @JoinProperty(name = "tag", referencedName = "customerTag")
+    })
+    @OrderBy("date ASC")
+    private List<Site> orders;
+}
+
+@Entity
+public class Order {
+    @Id private Long id;
+    private Date date;
+    @NotNull private String customerTag;
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+@Entity
+public class Customer {
+    @Id private Long id;
+    @Unique private String tag;
+
+    @ToMany(joinProperties = {
+            @JoinProperty(name = "tag", referencedName = "customerTag")
+    })
+    @OrderBy("date ASC")
+    private List<Site> orders;
+}
+
+@Entity
+public class Order {
+    @Id private Long id;
+    private Date date;
+    @NotNull private String customerTag;
+}
+@JoinEntity annotation: put this additional annotation on your property if you are doing an N:M (many-to-many) relation involving another join entity/table.
+Java
+
+@Entity
+public class Product {
+    @Id private Long id;
+
+    @ToMany
+    @JoinEntity(
+            entity = JoinProductsWithOrders.class,
+            sourceProperty = "productId",
+            targetProperty = "orderId"
+    )
+    private List<Order> ordersWithThisProduct;
+}
+
+@Entity
+public class JoinProductsWithOrders {
+    @Id private Long id;
+    private Long productId;
+    private Long orderId;
+}
+
+@Entity
+public class Order {
+    @Id private Long id;
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+@Entity
+public class Product {
+    @Id private Long id;
+
+    @ToMany
+    @JoinEntity(
+            entity = JoinProductsWithOrders.class,
+            sourceProperty = "productId",
+            targetProperty = "orderId"
+    )
+    private List<Order> ordersWithThisProduct;
+}
+
+@Entity
+public class JoinProductsWithOrders {
+    @Id private Long id;
+    private Long productId;
+    private Long orderId;
+}
+
+@Entity
+public class Order {
+    @Id private Long id;
+}
+Once run, the plugin will generate a getter to resolve the list of referenced entities. For example in the first two cases:
+
+Java
+
+// return all orders where customerId == customer.getId()
+List<Order> orders = customer.getOrders();
+1
+2
+// return all orders where customerId == customer.getId()
+List<Order> orders = customer.getOrders();
+Resolving and Updating To-Many Relations
+
+To-many relations are resolved lazily on the first request, and then cached in the source entity inside a List object. So subsequent calls to the get method of the relation do not query the database.
+
+Updating to-many relations requires some additional work. Because to-many lists are cached, they are not updated when related entities are added to the database. The following code illustrates the behavior:
+
+Java
+
+// get the current list of orders for a customer
+List<Order> orders1 = customer.getOrders();
+
+// insert a new order for this customer
+Order order = new Order();
+order.setCustomerId(customer.getId());
+daoSession.insert(order);
+
+// get the list of orders again
+List<Order> orders2 = customer.getOrders();
+
+// the (cached) list of orders was not updated
+// orders1 has the same size as orders2
+assert(orders1.size() == orders2.size);
+// orders1 is the same object as orders2
+assert(orders1.equals(orders2));
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+// get the current list of orders for a customer
+List<Order> orders1 = customer.getOrders();
+
+// insert a new order for this customer
+Order order = new Order();
+order.setCustomerId(customer.getId());
+daoSession.insert(order);
+
+// get the list of orders again
+List<Order> orders2 = customer.getOrders();
+
+// the (cached) list of orders was not updated
+// orders1 has the same size as orders2
+assert(orders1.size() == orders2.size);
+// orders1 is the same object as orders2
+assert(orders1.equals(orders2));
+So to add new related entities, add them manually to the to-many list of the source entity:
+
+Java
+
+// get the to-many list before inserting the new entity
+// otherwise the new entity might be in the list twice
+List<Order> orders = customer.getOrders();
+// create the new entity
+Order newOrder = ...
+// set the foreign key property
+newOrder.setCustomerId(customer.getId());
+// persist the new entity
+daoSession.insert(newOrder);
+// add it to the to-many list
+orders.add(newOrder);
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+// get the to-many list before inserting the new entity
+// otherwise the new entity might be in the list twice
+List<Order> orders = customer.getOrders();
+// create the new entity
+Order newOrder = ...
+// set the foreign key property
+newOrder.setCustomerId(customer.getId());
+// persist the new entity
+daoSession.insert(newOrder);
+// add it to the to-many list
+orders.add(newOrder);
+Likewise, you can delete related entities:
+
+Java
+
+List<Order> orders = customer.getOrders();
+// remove one of the orders from the database
+daoSession.delete(someOrder);
+// manually remove it from the to-many list
+orders.remove(someOrder);
+1
+2
+3
+4
+5
+List<Order> orders = customer.getOrders();
+// remove one of the orders from the database
+daoSession.delete(someOrder);
+// manually remove it from the to-many list
+orders.remove(someOrder);
+When adding, updating or removing many related entities you can use the reset method to clear the cached list. The next get will then requery the related entities:
+
+Java
+
+// clear any cached list of related orders
+customer.resetOrders();
+List<Order> orders = customer.getOrders();
+1
+2
+3
+// clear any cached list of related orders
+customer.resetOrders();
+List<Order> orders = customer.getOrders();
+Bi-Directional 1:N Relations
+
+Sometimes you want to navigate 1:N relations in both directions. In greenDAO, you have to add a to-one and a to-many relation to achieve this.
+
+The following example shows the complete modelling of the customer and order entities, we used as an example before. This time, we use the customerId property for creating both relations:
+
+Java
+
+@Entity
+public class Customer {
+    @Id private Long id;
+
+    @ToMany(referencedJoinProperty = "customerId")
+    @OrderBy("date ASC")
+    private List<Order> orders;
+}
+
+@Entity
+public class Order {
+    @Id private Long id;
+    private Date date;
+    private long customerId;
+
+    @ToOne(joinProperty = "customerId")
+    private Customer customer;
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+@Entity
+public class Customer {
+    @Id private Long id;
+
+    @ToMany(referencedJoinProperty = "customerId")
+    @OrderBy("date ASC")
+    private List<Order> orders;
+}
+
+@Entity
+public class Order {
+    @Id private Long id;
+    private Date date;
+    private long customerId;
+
+    @ToOne(joinProperty = "customerId")
+    private Customer customer;
+}
+Let’s assume we have an order entity. Using both relations, we could get the customer and all orders the customer has ever made:
+
+Java
+
+List<Order> allOrdersOfCustomer = order.getCustomer().getOrders();
+1
+List<Order> allOrdersOfCustomer = order.getCustomer().getOrders();
+Example: Modelling Tree Relations
+
+You can model a tree relation by modelling an entity with a to-one and a to-many relation pointing to itself:
+
+Java
+
+@Entity
+public class TreeNode {
+    @Id private Long id;
+
+    private Long parentId;
+
+    @ToOne(joinProperty = "parentId")
+    private TreeNode parent;
+
+    @ToMany(referencedJoinProperty = "parentId")
+    private List<TreeNode> children;
+}
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+@Entity
+public class TreeNode {
+    @Id private Long id;
+
+    private Long parentId;
+
+    @ToOne(joinProperty = "parentId")
+    private TreeNode parent;
+
+    @ToMany(referencedJoinProperty = "parentId")
+    private List<TreeNode> children;
+}
+The generated entity lets you navigate its parent and children:
+
+Java
+
+TreeNode parent = entity.getParent();
+List<TreeNode> children = entity.getChildren();
+1
+2
+TreeNode parent = entity.getParent();
+List<TreeNode> children = entity.getChildren();
+More examples
+
+Check out the DaoExample project for a complete example Android app.
+
+Also, the DaoTestEntityAnnotation project comes with several relation tests. Which, in addition with the other example and test projects, may serve as further examples.
+
+Spread the love
+ObjectBox: New Website
+
+objectbox.io is in process of launching
+GitHub Links
+
+EventBus, greenDAO, Essentials
+Latest News
+
+ObjectBox 0.9.10 – getting closer to 1.0
+ObjectBox Documentation Update
+greenDAO 3.2.2 Bugfix Release
+ObjectBox goes Reactive
+ObjectBox 0.9.7 Beta Release
+Recent Comments
+
+DaoMaster on Custom Types
+rootandy on Custom Types
+Rishabh Arora on ObjectBox – The new Mobile Database (Beta)
+payam on ObjectBox – The new Mobile Database (Beta)
+DaoMaster on ObjectBox – The new Mobile Database (Beta)
+Tags
+
+ActiveAndroid Active Entities Android Things Annotations Benchmark beta Data Listeners DbFlow Documentation Encryption EventBus GDG Gradle greenDAO greenrobot-common Hardware index IoT JavaDocs JDT JNI mobile database NDK NoSQL ObjectBox Open Source ORM OrmLite perfmatters Performance Presentation Query QueryBuilder Raspberry Reactive Reactive Observers Reactive Programming Reddit Reflection Release Requery Slides SQLCipher SQLite To-Many
+greenrobot Open Source Libraries: EventBus, greenDAO, greenrobot Common. (c) Copyright 2016 greenrobot. All rights reserved. Impressum
